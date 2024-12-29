@@ -1,6 +1,9 @@
 import { where } from "sequelize"
 import db from "../models/index"
+require('dotenv').config();
+import _ from "lodash";
 
+const MAX_NUMBER_SCHEDULE = process.env.MAX_NUMBER_SCHEDULE;
 
 let getTopDoctorHomeService = (limitInput) => {
     return new Promise(async (resolve, reject) => {
@@ -70,12 +73,11 @@ let saveDetailInfoDoctor = (inputData) => {
                     where: { doctorId: inputData.doctorId }
                 })
                 if (isFoundDoctor) {
-                    await db.Markdown.update(
-                        {
-                            contentHTML: inputData.contentHTML,
-                            contentMarkdown: inputData.contentMarkdown,
-                            description: inputData.description,
-                        },
+                    await db.Markdown.update({
+                        contentHTML: inputData.contentHTML,
+                        contentMarkdown: inputData.contentMarkdown,
+                        description: inputData.description,
+                    },
                         { where: { doctorId: inputData.doctorId } })
                     resolve({
                         errCode: 0,
@@ -139,9 +141,63 @@ let getDetailDoctorByIdService = (inputId) => {
         }
     })
 }
+
+let bulkCreateScheduleService = (input) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (!input.data || !input.date || !input.doctorId) {
+                resolve({
+                    errCode: 1,
+                    errMessage: 'Missing required parameter!'
+                })
+            } else {
+                let schedule = input.data;
+                if (schedule && schedule.length > 0) {
+                    schedule = schedule.map(item => {
+                        item.maxNumber = MAX_NUMBER_SCHEDULE;
+                        return item;
+                    })
+                }
+                console.log('schedule send', schedule);
+
+
+                const existingSchedules = await db.Schedule.findAll({
+                    where: {
+                        doctorId: input.doctorId,
+                        date: input.date
+                    },
+                    attributes: ['timeType', 'date', 'doctorId', 'maxNumber']
+                })
+                console.log('existingSchedules: ', existingSchedules)
+
+                const newSchedules = _.differenceWith(schedule, existingSchedules, (a, b) => {
+                    return a.date === b.date.toISOString()
+                        && a.timeType === b.timeType
+                        && a.doctorId === b.doctorId;
+                });
+                console.log('---------------------------------------')
+                console.log('check newSchedules: ', newSchedules)
+                if (newSchedules && newSchedules.length > 0) {
+                    await db.Schedule.bulkCreate(newSchedules);
+                }
+
+
+
+                resolve({
+                    errCode: 0,
+                    errMessage: 'ok'
+                })
+            }
+        } catch (e) {
+            reject(e)
+        }
+    })
+}
+
 module.exports = {
     getTopDoctorHomeService: getTopDoctorHomeService,
     getAllDoctorsService: getAllDoctorsService,
     saveDetailInfoDoctor: saveDetailInfoDoctor,
-    getDetailDoctorByIdService: getDetailDoctorByIdService
+    getDetailDoctorByIdService: getDetailDoctorByIdService,
+    bulkCreateScheduleService: bulkCreateScheduleService,
 }
