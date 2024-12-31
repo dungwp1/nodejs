@@ -168,10 +168,11 @@ let bulkCreateScheduleService = (input) => {
                     },
                     attributes: ['timeType', 'date', 'doctorId', 'maxNumber']
                 })
+                console.log('---------------------------------------')
                 console.log('existingSchedules: ', existingSchedules)
 
                 const newSchedules = _.differenceWith(schedule, existingSchedules, (a, b) => {
-                    return a.date === b.date.toISOString()
+                    return a.date === b.date.getTime()
                         && a.timeType === b.timeType
                         && a.doctorId === b.doctorId;
                 });
@@ -179,14 +180,16 @@ let bulkCreateScheduleService = (input) => {
                 console.log('check newSchedules: ', newSchedules)
                 if (newSchedules && newSchedules.length > 0) {
                     await db.Schedule.bulkCreate(newSchedules);
+                    resolve({
+                        errCode: 0,
+                        errMessage: 'ok'
+                    })
+                } else {
+                    resolve({
+                        errCode: 2,
+                        errMessage: 'Các giờ khám đã tồn tại trong DB'
+                    })
                 }
-
-
-
-                resolve({
-                    errCode: 0,
-                    errMessage: 'ok'
-                })
             }
         } catch (e) {
             reject(e)
@@ -194,7 +197,6 @@ let bulkCreateScheduleService = (input) => {
     })
 }
 let getDoctorScheduleByIdService = (inputDoctorId, inputDate) => {
-    // console.log('check inputId: ', inputId)
     return new Promise(async (resolve, reject) => {
         try {
             if (!inputDoctorId || !inputDate) {
@@ -206,7 +208,7 @@ let getDoctorScheduleByIdService = (inputDoctorId, inputDate) => {
                 let schedule = await db.Schedule.findAll({
                     where: {
                         doctorId: inputDoctorId,
-                        date: inputDate
+                        date: new Date(Number(inputDate))
                     },
                     include: [
                         { model: db.Allcode, as: 'timeTypeData', attributes: ['valueEn', 'valueVi'] },
