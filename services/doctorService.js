@@ -1,7 +1,7 @@
 import { where } from "sequelize"
 import db from "../models/index"
 require('dotenv').config();
-import _ from "lodash";
+import _, { includes } from "lodash";
 
 const MAX_NUMBER_SCHEDULE = process.env.MAX_NUMBER_SCHEDULE;
 
@@ -62,40 +62,33 @@ let saveDetailInfoDoctor = (inputData) => {
     return new Promise(async (resolve, reject) => {
         console.log('check inputdata', inputData)
         try {
-            if (!inputData.doctorId || !inputData.contentHTML || !inputData.contentMarkdown) {
+            if (!inputData.doctorId || !inputData.contentHTML || !inputData.contentMarkdown ||
+                !inputData.selectedPrice || !inputData.selectedProvince || !inputData.selectedPayment ||
+                !inputData.addressClinic || !inputData.nameClinic) {
                 resolve({
                     errCode: 1,
                     errMessage: 'Missing parameter'
 
                 })
             } else {
-                let isFoundDoctor = await db.Markdown.findOne({
-                    where: { doctorId: inputData.doctorId }
+                await db.Markdown.upsert({
+                    contentHTML: inputData.contentHTML,
+                    contentMarkdown: inputData.contentMarkdown,
+                    description: inputData.description,
+                }, { where: { doctorId: inputData.doctorId } });
+                await db.Doctor_Info.upsert({
+                    doctorId: inputData.doctorId,
+                    priceId: inputData.selectedPrice,
+                    provinceId: inputData.selectedProvince,
+                    paymentId: inputData.selectedPayment,
+                    addressClinic: inputData.addressClinic,
+                    nameClinic: inputData.nameClinic,
+                    note: inputData.note,
+                }, { where: { doctorId: inputData.doctorId } });
+                resolve({
+                    errCode: 0,
+                    errMessage: 'Save Info Doctor Success'
                 })
-                if (isFoundDoctor) {
-                    await db.Markdown.update({
-                        contentHTML: inputData.contentHTML,
-                        contentMarkdown: inputData.contentMarkdown,
-                        description: inputData.description,
-                    },
-                        { where: { doctorId: inputData.doctorId } })
-                    resolve({
-                        errCode: 0,
-                        errMessage: 'Update Info Doctor Success'
-                    })
-                } else {
-                    await db.Markdown.create({
-                        contentHTML: inputData.contentHTML,
-                        contentMarkdown: inputData.contentMarkdown,
-                        description: inputData.description,
-                        doctorId: inputData.doctorId,
-                    })
-                    resolve({
-                        errCode: 0,
-                        errMessage: 'Create Info Doctor Success'
-                    })
-                }
-
             }
         } catch (e) {
             reject(e)
@@ -119,7 +112,19 @@ let getDetailDoctorByIdService = (inputId) => {
                     },
                     include: [
                         { model: db.Markdown, attributes: ['contentHTML', 'contentMarkdown', 'description'] },
-                        { model: db.Allcode, as: 'positionData', attributes: ['valueEn', 'valueVi'] }
+                        { model: db.Allcode, as: 'positionData', attributes: ['valueEn', 'valueVi'] },
+                        {
+                            model: db.Doctor_Info,
+                            attributes: {
+                                exclude: ['id', 'doctorId', 'createAt', 'updateAt']
+                            },
+                            include: [
+                                { model: db.Allcode, as: 'priceData', attributes: ['valueEn', 'valueVi'] },
+                                { model: db.Allcode, as: 'provinceData', attributes: ['valueEn', 'valueVi'] },
+                                { model: db.Allcode, as: 'paymentData', attributes: ['valueEn', 'valueVi'] },
+                            ]
+                        },
+
                     ],
                     raw: true,
                     nest: true
