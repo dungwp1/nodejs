@@ -4,7 +4,6 @@ require('dotenv').config();
 import _, { includes } from "lodash";
 
 let patientBookAppointmentService = (input) => {
-    console.log('check input selectedDay: ', input.selectedDay, typeof input.selectedDay)
     let selectedDay = Number(input.selectedDay)
     console.log('check input selectedDay: ', selectedDay, typeof selectedDay)
 
@@ -12,42 +11,61 @@ let patientBookAppointmentService = (input) => {
 
         try {
             if (!input.email) {
-                console.log("--")
                 resolve({
                     errCode: 1,
                     errMessage: 'Missing required parameter!'
                 })
 
             } else {
-
-                let user = await db.User.findOrCreate({
+                let user = ''
+                let isFoundUser = await db.User.findOne({
                     where: { email: input.email },
-                    defaults: {
-                        email: input.email,
-                        roleId: 'R3'
-                    },
+                    raw: false,
                 });
+                console.log("isFoundUser", isFoundUser)
+                if (isFoundUser) {
+                    console.log('case update: ', isFoundUser);
 
-                if (user) {
+                    isFoundUser.email = input.email;
+                    isFoundUser.phoneNumber = input.phoneNumber;
+                    isFoundUser.gender = input.gender;
+                    isFoundUser.firstName = input.firstName;
+                    isFoundUser.lastName = input.lastName;
+                    isFoundUser.roleId = 'R3';
+                    console.log('check isFoundUser user: ', isFoundUser);
 
-                    let data = await db.Booking.create({
-                        statusId: input.statusId,
-                        doctorId: input.doctorId,
-                        patientId: user[0].id,
-                        date: selectedDay,
-                        // date: 1735837200000,
-                        timeType: input.timeType,
-                    })
+                    await isFoundUser.save();
+                    user = isFoundUser.toJSON();
+                    console.log('check update user: ', user)
 
-                    console.log('check data: ', data)
-                    resolve({
-                        errCode: 0,
-                        data: data
-                    })
+                } else {
+                    console.log("case create")
+
+                    user = await db.User.create({
+                        email: input.email,
+                        phoneNumber: input.phoneNumber,
+                        gender: input.gender,
+                        firstName: input.firstName,
+                        lastName: input.lastName,
+                        roleId: 'R3'
+                    });
+                    console.log('check create user: ', user)
+
                 }
+                console.log('check user id: ', user.id)
+
+                let data = await db.Booking.create({
+                    statusId: input.statusId,
+                    doctorId: input.doctorId,
+                    patientId: user.id,
+                    date: selectedDay,
+                    timeType: input.timeType,
+                })
+
+                console.log('check data: ', data)
                 resolve({
                     errCode: 0,
-                    data: [0]
+                    errMessage: 'Save Info Booking Success'
                 })
 
             }
