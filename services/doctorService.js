@@ -105,6 +105,7 @@ let getDetailDoctorByIdService = (inputId) => {
                     errMessage: 'Missing required parameter'
                 })
             } else {
+                console.log("-")
                 let data = await db.User.findOne({
                     where: { id: inputId },
                     attributes: {
@@ -129,6 +130,8 @@ let getDetailDoctorByIdService = (inputId) => {
                     raw: true,
                     nest: true
                 })
+                console.log("--")
+
 
                 if (data && data.image) {
                     data.image = new Buffer(data.image, 'base64').toString('binary');
@@ -232,6 +235,7 @@ let getDoctorScheduleByIdService = (inputDoctorId, inputDate) => {
         }
     })
 }
+
 module.exports = {
     getTopDoctorHomeService: getTopDoctorHomeService,
     getAllDoctorsService: getAllDoctorsService,
